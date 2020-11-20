@@ -21,15 +21,10 @@ namespace LS4W.WindowsAppEnumeration
 
         public IEnumerable<WindowsApp> GetWindowsApps()
         {
-            //Get executables
-            using var key = Registry.LocalMachine.OpenSubKey(_config.AppPathRegistryKey);
             foreach (var app in GetExecutablePaths())
             {
-                IconExtractor ie = new IconExtractor(app.ExecutableLocation);
-                if (ie.Count == 0) //contains no icons
-                    continue;
-
-                var iconVariations = IconUtil.Split(ie.GetIcon(0));
+                var icons = Icon.ExtractAssociatedIcon(app.ExecutableLocation);
+                var iconVariations = IconUtil.Split(icons);
                 app.IconPaths = CopyIcons(iconVariations, app.ExecutableLocation);
                 app.IconB64 = ConvertLargestIconToBase64(iconVariations);
 
