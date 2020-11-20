@@ -1,12 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
-using System.Linq;
 using LS4W.WindowsAppEnumeration.Domain;
 using Microsoft.Win32;
-using TsudaKageyu;
+using Toolbelt.Drawing;
 
 namespace LS4W.WindowsAppEnumeration
 {
@@ -23,10 +20,10 @@ namespace LS4W.WindowsAppEnumeration
         {
             foreach (var app in GetExecutablePaths())
             {
-                var icons = Icon.ExtractAssociatedIcon(app.ExecutableLocation);
-                var iconVariations = IconUtil.Split(icons);
-                app.IconPaths = CopyIcons(iconVariations, app.ExecutableLocation);
-                app.IconB64 = ConvertLargestIconToBase64(iconVariations);
+                using var ms = new MemoryStream();
+                IconExtractor.Extract1stIconTo(app.ExecutableLocation, ms);
+                app.IconPaths = CopyIcons(ms, app.ExecutableLocation);
+                app.IconB64 = ConvertIconToBase64(ms);
 
                 yield return app;
             }
@@ -53,33 +50,29 @@ namespace LS4W.WindowsAppEnumeration
             }
         }
 
-        private List<string> CopyIcons(IEnumerable<Icon> icons, string executableLocation)
+        private List<string> CopyIcons(MemoryStream ms, string executableLocation)
         {
             var paths = new List<string>();
 
             if (!_config.CopyIcon)
                 return paths;
 
-            foreach (var (icon, index) in icons.WithIndex())
-            {
-                var iconExportName = $"{Path.GetFileName(executableLocation)}_{index}.png";
-                var iconAsBitmap = icon.ToBitmap();
-                iconAsBitmap.Save(_config.IconCopyPath + iconExportName, ImageFormat.Png);
-                paths.Add($"{_config.IconCopyPath}{iconExportName}");
-            }
+            ms.Seek(0, SeekOrigin.Begin);
+            var path = $"{Path.GetFileName(executableLocation)}.png";
+            using var fileStream = File.Create(path);
+            ms.CopyTo(fileStream);
+            fileStream.Close();
+            paths.Add(path);
 
             return paths;
         }
 
-        private string ConvertLargestIconToBase64(IEnumerable<Icon> icons)
+        private string ConvertIconToBase64(MemoryStream ms)
         {
             if (!_config.ExportAsBase64)
                 return null;
-            var largestIcon = icons.OrderByDescending(icon => icon.Width).First();
-            var iconAsBitmap = largestIcon.ToBitmap();
-            using var ms = new MemoryStream();
 
-            iconAsBitmap.Save(ms, ImageFormat.Png);
+            ms.Seek(0, SeekOrigin.Begin);
             var iconAsBytes = ms.ToArray();
             return Convert.ToBase64String(iconAsBytes);
         }
