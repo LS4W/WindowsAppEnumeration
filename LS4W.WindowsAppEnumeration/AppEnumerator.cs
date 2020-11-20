@@ -22,7 +22,7 @@ namespace LS4W.WindowsAppEnumeration
             {
                 using var ms = new MemoryStream();
                 IconExtractor.Extract1stIconTo(app.ExecutableLocation, ms);
-                app.IconPaths = CopyIcons(ms, app.ExecutableLocation);
+                app.IconPath = CopyIcons(ms, app.ExecutableLocation);
                 app.IconB64 = ConvertIconToBase64(ms);
 
                 yield return app;
@@ -50,21 +50,17 @@ namespace LS4W.WindowsAppEnumeration
             }
         }
 
-        private List<string> CopyIcons(MemoryStream ms, string executableLocation)
+        private string CopyIcons(MemoryStream ms, string executableLocation)
         {
-            var paths = new List<string>();
-
             if (!_config.CopyIcon)
-                return paths;
+                return default;
 
             ms.Seek(0, SeekOrigin.Begin);
-            var path = $"{Path.GetFileName(executableLocation)}.png";
+            var path = $"{_config.IconCopyPath}{Path.GetFileName(executableLocation)}.png";
             using var fileStream = File.Create(path);
             ms.CopyTo(fileStream);
             fileStream.Close();
-            paths.Add(path);
-
-            return paths;
+            return path;
         }
 
         private string ConvertIconToBase64(MemoryStream ms)
